@@ -1,0 +1,99 @@
+{
+  "commander": {
+    "name": "commander",
+    "version": "15.1.0",
+    "maintainers": [
+      {
+        "name": "abetomo"
+      },
+      {
+        "name": "shadowspawn"
+      }
+    ],
+    "funding": null
+  },
+  "picocolors": {
+    "name": "picocolors",
+    "version": "1.1.1",
+    "maintainers": [
+      {
+        "name": "alexeyraspopov"
+      }
+    ],
+    "funding": null
+  },
+  "pino": {
+    "name": "pino",
+    "version": "10.4.0",
+    "maintainers": [
+      {
+        "name": "davidmarkclements"
+      },
+      {
+        "name": "jsumners"
+      },
+      {
+        "name": "matteo.collina"
+      },
+      {
+        "name": "watson"
+      }
+    ],
+    "funding": null
+  },
+  "semver": {
+    "name": "semver",
+    "version": "7.8.6",
+    "maintainers": [
+      {
+        "name": "martinrrm"
+      },
+      {
+        "name": "npm-cli-ops"
+      },
+      {
+        "name": "reggi"
+      },
+      {
+        "name": "saquibkhan"
+      }
+    ],
+    "funding": null
+  },
+  "undici": {
+    "name": "undici",
+    "version": "8.12.4",
+    "maintainers": [
+      {
+        "name": "ethan_arrowood"
+      },
+      {
+        "name": "matteo.collina"
+      },
+      {
+        "name": "ronag"
+      }
+    ],
+    "funding": null
+  },
+  "yaml": {
+    "name": "yaml",
+    "version": "2.9.1",
+    "maintainers": [
+      {
+        "name": "eemeli"
+      }
+    ],
+    "funding": "https://github.com/sponsors/eemeli"
+  },
+  "zod": {
+    "name": "zod",
+    "version": "4.6.7",
+    "maintainers": [
+      {
+        "name": "colinhacks"
+      }
+    ],
+    "funding": "https://github.com/sponsors/colinhacks"
+  }
+}

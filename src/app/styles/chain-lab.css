@@ -1,0 +1,196 @@
+/* Hallmark · layer: chain-lab (stamp, critique and waivers in globals.css) */
+:root {
+  --chain-step: 25ms;
+  --chain-gap: 0.75rem;
+  --chain-gap-phone: 0.375rem;
+  --chain-tile-h: 5.25rem;
+  --chain-fall-ms: 280ms;
+}
+
+.chain-grid {
+  display: grid;
+  gap: var(--chain-gap-phone);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  list-style: none;
+  padding: 0;
+}
+@media (min-width: 30rem) {
+  .chain-grid {
+    gap: var(--chain-gap);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (min-width: 48rem) {
+  .chain-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+@media (min-width: 64rem) {
+  .chain-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+}
+
+.chain-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-2xs);
+  min-height: var(--chain-tile-h);
+  min-width: 0;
+  padding: var(--space-xs) var(--space-sm);
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid var(--color-night-line);
+  border-radius: var(--radius-md);
+  background-color: var(--color-night-2);
+  color: var(--color-on-night-soft);
+  transition:
+    background-color 120ms var(--ease-out),
+    border-color 120ms var(--ease-out),
+    color 120ms var(--ease-out);
+}
+@media (max-width: 29.99rem) {
+  .chain-tile {
+    min-height: 0;
+    padding: var(--space-2xs);
+  }
+}
+.chain-tile-type {
+  display: none;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 30rem) {
+  .chain-tile-type {
+    display: -webkit-box;
+  }
+}
+
+/* The hairline that joins a tile to the next one in its row. */
+.chain-tile::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  width: var(--chain-gap);
+  height: 1px;
+  background-color: var(--color-night-line);
+  pointer-events: none;
+  transition: background-color 120ms var(--ease-out);
+}
+.chain-grid > li:last-child .chain-tile::after {
+  display: none;
+}
+.chain-tile::after {
+  width: var(--chain-gap-phone);
+}
+.chain-grid > li:nth-child(5n) .chain-tile::after {
+  display: none;
+}
+@media (min-width: 30rem) {
+  .chain-tile::after {
+    width: var(--chain-gap);
+  }
+  .chain-grid > li:nth-child(5n) .chain-tile::after {
+    display: block;
+  }
+  .chain-grid > li:nth-child(4n) .chain-tile::after {
+    display: none;
+  }
+}
+@media (min-width: 48rem) {
+  .chain-grid > li:nth-child(4n) .chain-tile::after {
+    display: block;
+  }
+  .chain-grid > li:nth-child(6n) .chain-tile::after {
+    display: none;
+  }
+}
+@media (min-width: 64rem) {
+  .chain-grid > li:nth-child(6n) .chain-tile::after {
+    display: block;
+  }
+  .chain-grid > li:nth-child(7n) .chain-tile::after {
+    display: none;
+  }
+  .chain-grid > li:last-child .chain-tile::after {
+    display: none;
+  }
+}
+
+.chain-tile[data-state="ok"] {
+  background-color: var(--color-pp-sky);
+  border-color: var(--color-pp-sky);
+  color: var(--color-night);
+}
+.chain-tile[data-state="ok"]::after {
+  background-color: var(--color-pp-sky);
+}
+.chain-tile[data-state="bad"],
+.chain-tile[data-state="cascade"] {
+  background-color: var(--color-stamp-red);
+  border-color: var(--color-stamp-red);
+  color: var(--color-on-plate);
+}
+.chain-tile[data-state="bad"]::after,
+.chain-tile[data-state="cascade"]::after {
+  background-color: var(--color-stamp-red);
+}
+
+/* The cascade: each failing tile drops from verified to broken, one step after the one before. */
+.chain-tile[data-cascade] {
+  animation: chain-fall var(--chain-fall-ms) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * var(--chain-step));
+}
+.chain-tile[data-cascade]::after {
+  animation: chain-fall-link var(--chain-fall-ms) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * var(--chain-step));
+}
+@keyframes chain-fall {
+  0% {
+    background-color: var(--color-pp-sky);
+    border-color: var(--color-pp-sky);
+    color: var(--color-night);
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-4px);
+  }
+  100% {
+    background-color: var(--color-stamp-red);
+    border-color: var(--color-stamp-red);
+    color: var(--color-on-plate);
+    transform: translateY(0);
+  }
+}
+@keyframes chain-fall-link {
+  from {
+    background-color: var(--color-pp-sky);
+  }
+  to {
+    background-color: var(--color-stamp-red);
+  }
+}
+
+.chain-tile[aria-pressed="true"] {
+  outline: 2px solid var(--color-on-night);
+  outline-offset: 2px;
+}
+@media (hover: hover) {
+  .chain-tile:hover {
+    border-color: var(--color-on-night);
+  }
+}
+.chain-tile:active {
+  border-color: var(--color-on-night);
+}
+
+/* A closed details element keeps its content laid out in Chromium (content-visibility on ::details-content),
+   which counts toward the page's words and overflows its plate. Take it out of layout until opened. */
+#ledger details:not([open]) > :not(summary) {
+  display: none;
+}

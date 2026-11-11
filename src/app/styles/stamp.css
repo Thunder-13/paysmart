@@ -1,0 +1,146 @@
+/* Hallmark · layer: stamp (stamp, critique and waivers in globals.css) */
+:root {
+  --stamp-press-dur: 560ms;
+  --stamp-plate-dur: 300ms;
+  --stamp-clause-base: 380ms;
+  --stamp-clause-step: 70ms;
+  --stamp-seal-dur: 520ms;
+  --stamp-wait-dur: 3200ms;
+  --stamp-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* The ink press: the word slams down big and tilted, bounces and settles slightly crooked, like a hand stamp. */
+@keyframes stamp-press {
+  0% {
+    opacity: 0;
+    transform: scale(2.2) rotate(-9deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(0.94) rotate(-3deg);
+  }
+  75% {
+    transform: scale(1.03) rotate(-3deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(-3deg);
+  }
+}
+
+/* The coloured holder plate unrolls from its left edge. */
+@keyframes stamp-plate {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Clause rows arrive after the stamp lands. */
+@keyframes stamp-clause {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The seal presses onto the signature line. */
+@keyframes stamp-seal {
+  0% {
+    opacity: 0;
+    transform: scale(2.4) rotate(14deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.9) rotate(-8deg);
+  }
+  80% {
+    transform: scale(1.06) rotate(-8deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(-8deg);
+  }
+}
+
+/* Waiting: a slow breath, never a width change. */
+@keyframes stamp-breathe {
+  0%,
+  100% {
+    transform: scaleX(0.18);
+  }
+  50% {
+    transform: scaleX(0.62);
+  }
+}
+@keyframes stamp-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.stamp-word {
+  display: inline-block;
+  max-width: 100%;
+  transform-origin: center;
+  transform: rotate(-3deg);
+  animation: stamp-press var(--stamp-press-dur) var(--stamp-ease) both;
+}
+
+.stamp-plate {
+  transform-origin: left center;
+  animation: stamp-plate var(--stamp-plate-dur) var(--stamp-ease) both;
+}
+
+.stamp-clause {
+  animation: stamp-clause 320ms var(--stamp-ease) both;
+  animation-delay: calc(var(--stamp-clause-base) + var(--i, 0) * var(--stamp-clause-step));
+}
+
+.stamp-seal {
+  display: inline-block;
+  transform: rotate(-8deg);
+  animation: stamp-seal var(--stamp-seal-dur) var(--stamp-ease) 120ms both;
+}
+
+.stamp-wait-track {
+  position: relative;
+  height: 3px;
+  overflow: hidden;
+}
+.stamp-wait-bar {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  animation: stamp-breathe var(--stamp-wait-dur) ease-in-out infinite;
+}
+.stamp-wait-pulse {
+  animation: stamp-pulse var(--stamp-wait-dur) ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stamp-word,
+  .stamp-plate,
+  .stamp-clause,
+  .stamp-seal {
+    animation: none;
+    opacity: 1;
+  }
+  .stamp-wait-bar {
+    animation: none;
+    transform: scaleX(0.4);
+  }
+  .stamp-wait-pulse {
+    animation: none;
+  }
+}

@@ -1,0 +1,98 @@
+# Render Blueprint for Permission Slip: one Node web service with a persistent disk for SQLite,
+# plus a cron job that runs the bounty deadline sweep over HTTP.
+#
+# Mock mode is the default, so the hosted demo works with no keys: the mock PayPal rail and the
+# scripted AI. Judges can press "Load the demo story" on the home page (POST /api/demo/seed).
+# For the PayPal sandbox, fill PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET when Render asks and change
+# PAYPAL_MODE to sandbox (and AI_MODE to anthropic with ANTHROPIC_API_KEY for real Claude calls).
+#
+# Why the cron job calls HTTP: a Render disk attaches to one service only, and cron jobs can't
+# mount it, so a cron job can't open the SQLite file. It POSTs to /api/p/bounty/tick on the web
+# service over Render's private network instead, with CRON_SECRET as a bearer token.
+services:
+  - type: web
+    name: permission-slip
+    runtime: node
+    # A persistent disk needs a paid instance type; the free plan can't mount one. "starter" is
+    # also listed as 0.5c-512mb. A service with a disk runs one instance and has no zero-downtime
+    # deploys (Render stops the old instance before starting the new one).
+    plan: starter
+    region: oregon
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    disk:
+      name: permission-slip-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      # node:sqlite needs Node 22.13 or newer (package.json engines). Pin a current LTS line.
+      - key: NODE_VERSION
+        value: "24"
+      - key: DATA_DIR
+        value: /var/data
+      - key: PAYPAL_MODE
+        value: mock
+      - key: AI_MODE
+        value: mock
+      - key: ANTHROPIC_MODEL_SMART
+        value: claude-sonnet-5-5
+      - key: ANTHROPIC_MODEL_FAST
+        value: claude-haiku-5-5
+      # PayPal return and cancel links use the public URL. Left empty, the app uses
+      # RENDER_EXTERNAL_URL, which Render sets on every web service. Set it for a custom domain.
+      - key: APP_BASE_URL
+        sync: false
+      # Secrets: Render prompts for these once, when the Blueprint is created. Leave them empty
+      # for the mock demo.
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CHANNEL3_API_KEY
+        sync: false
+      - key: CRON_SECRET
+        sync: false
+      - key: AFFILIATE_ADMIN_SECRET
+        sync: false
+      # Sandbox-only accounts and overrides (see .env.example).
+      - key: SECOND_LOOK_SELLER_EMAIL
+        sync: false
+      - key: SHOP_HELPER_EMAIL
+        sync: false
+      - key: CASH_WEATHER_RECEIVERS_JSON
+        sync: false
+      - key: TOLL_ROAD_PUBLISHER_EMAILS
+        sync: false
+      - key: CASH_WEATHER_NPM_LIVE
+        sync: false
+      - key: PAYPAL_API_BASE
+        sync: false
+
+  # Every 15 minutes: close bounties past their deadline so PayPal voids their pledge holds.
+  # The route answers 404 until CRON_SECRET is set on the web service.
+  - type: cron
+    name: permission-slip-bounty-tick
+    runtime: node
+    schedule: "*/15 * * * *"
+    buildCommand: node --version
+    startCommand: >-
+      node -e 'fetch("http://" + process.env.WEB_HOSTPORT + "/api/p/bounty/tick", { method: "POST", headers: { authorization: "Bearer " + process.env.CRON_SECRET } }).then(async (r) => { console.log(r.status, await r.text()); process.exit(r.ok ? 0 : 1); }, (e) => { console.error(e); process.exit(1); })'
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: WEB_HOSTPORT
+        fromService:
+          type: web
+          name: permission-slip
+          property: hostport
+      - key: CRON_SECRET
+        fromService:
+          type: web
+          name: permission-slip
+          envVarKey: CRON_SECRET

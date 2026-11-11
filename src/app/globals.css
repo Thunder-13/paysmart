@@ -1,0 +1,358 @@
+/* Hallmark · shape: kept (home recomposed; pipeline screens: app screen) · genre: modern-minimal · theme: brand · brand: PayPal60 (spec 2026-11-09) · redesign: full
+ * paper: oklch(97.5% 0.005 258) · accent: oklch(55.5% 0.229 260.2) · display: Albert Sans · body: Albert Sans · hero: Stage (/) · nav: edge-aligned bar on the night field, wordmark, seven pipeline links, two mode chips, a gliding active pill · footer: night mast, the wordmark at display scale under the pipeline links · signature: the hijack replayed on the clearance board, then two live instruments: the real guard running in the browser (Guard Lab) and the ledger re-hashed with Web Crypto, tamperable in memory (Chain Lab)
+ * axes: light/grotesk-sans/chromatic-blue · posture: full-palette (field night, signal PayPal blue, cleared sky, call gold, refusal red) · contrast: pass · fold: pass · overdrive: 2026-11-09 (thunder13 motion layer, impeccable overdrive) · v2.0.0 */
+/* Hallmark · pre-emit critique: P5 H5 E4 S5 R4 V5 · weakest: E, seven workers built in parallel; one file set each, one CSS layer each under styles/, swept with sloplint --render on home and every pipeline screen */
+/* Hallmark · direction: clearance board (impeccable seed f8d86edb, assigned 3/7) · raises: red only for refusal (vu bridge) · depth from overlapping flat plates, no drop shadows (papercut) · a ruled caption naming every PayPal API a pipeline uses (portrait plate) · no prose on the board (console) · each strip marks the clause that decided it (zine) · each strip carries its origin ticket (bazaar) */
+/* Hallmark · dropped demo-heading · the "First time here?" panel folded into the hero action and the pipelines intro; its words and button are kept */
+/* Hallmark · dismissed 49 · "Seller accepted protected payment" already sets whitespace-nowrap in a flex-wrap row; the bounty "Pin the job site" text is a checkbox label, not a button */
+/* Hallmark · dismissed 70 · "Sent through PayPal" in the Cash Weather invoice strip appears only after the real send request returns */
+/* Hallmark · waive 72 · li.rack-in and closed details on the clearance board and evidence packs · the overrun measured is a truncated listing title and the folded content of a closed details element, neither painted */
+/* Hallmark · fixed 19 · the Cash Weather week ranges now read "Nov 3" over "to Nov 9", no dash; components.test.ts asserts both lines and no dash */
+/* Hallmark · waive 39b · button.w-full on the Dispute Desk deadline board and button.chain-tile in the Chain Lab · each is one selectable record (a whole dispute case, or a ledger event with seq, type and hash), so the record itself is the target and its data sets its height */
+/* Hallmark · waive 23 · the Shop pipeline header paints PayPal blue across the fold · it is the Shop plate from home carried by the view-transition morph, and the declared posture is full palette */
+/* Hallmark · answered F19 · weight 900 appears only in the verdict stamp word, the one exception DESIGN.md allows */
+
+@import "tailwindcss";
+@import "./styles/motion.css";
+@import "./styles/replay.css";
+@import "./styles/guard-lab.css";
+@import "./styles/chain-lab.css";
+@import "./styles/plates.css";
+@import "./styles/stamp.css";
+
+/* ------------------------------------------------------------------ tokens
+ * Every colour, face, size, radius and ease is declared here and nowhere else.
+ * Names are the project's own (paper, ink, line, stamp-*), remapped to PayPal's
+ * PayPal60 system (.hallmark/brand-spec.md), plus the night field and the plates. */
+@theme static {
+  /* Light ground (PayPal neutral-100 / neutral-200 family, tinted toward the blue). */
+  --color-paper: oklch(97.5% 0.005 258);
+  --color-paper-deep: oklch(94.6% 0.01 258);
+  --color-card: oklch(99.6% 0.002 258);
+  --color-ink: oklch(19.9% 0.071 257.3);
+  --color-ink-soft: oklch(38% 0.04 258);
+  --color-ink-faint: oklch(50% 0.035 258);
+  --color-line: oklch(90.1% 0.019 258.4);
+  --color-edge: oklch(60% 0.03 258);
+
+  /* The night field (PayPal's deepest navy) and its raised plates. */
+  --color-night: oklch(19.9% 0.071 257.3);
+  --color-night-2: oklch(24.5% 0.085 258);
+  --color-night-3: oklch(29.5% 0.1 259);
+  --color-night-line: oklch(36% 0.08 259);
+  --color-on-night: oklch(97.5% 0.008 258);
+  --color-on-night-soft: oklch(78% 0.045 255);
+
+  /* PayPal plates. */
+  --color-pp-blue: oklch(55.5% 0.229 260.2);
+  --color-pp-blue-deep: oklch(48% 0.22 261);
+  --color-pp-deep: oklch(34.4% 0.175 263.1);
+  --color-pp-sky: oklch(80.4% 0.122 230.8);
+  --color-pp-sky-wash: oklch(94.5% 0.035 230);
+  --color-pp-gold: oklch(75.2% 0.086 85.8);
+  --color-pp-gold-wash: oklch(95% 0.042 92);
+  --color-on-plate: oklch(99% 0.004 258);
+  --color-on-plate-soft: oklch(92% 0.03 255);
+  --color-plate-rule: oklch(74% 0.13 252);
+
+  /* Signal, focus and verdicts. Red belongs to refusal alone. */
+  --color-accent: oklch(55.5% 0.229 260.2);
+  --color-accent-ink: oklch(99.6% 0.002 258);
+  --color-focus: oklch(55.5% 0.229 260.2);
+  --color-focus-on-night: oklch(80.4% 0.122 230.8);
+  --color-stamp-green: oklch(47% 0.13 152);
+  --color-stamp-red: oklch(50% 0.2 27);
+  --color-stamp-amber: oklch(48% 0.1 75);
+  --color-green-wash: oklch(95.5% 0.035 152);
+  --color-red-wash: oklch(95.5% 0.03 27);
+  --color-amber-wash: oklch(95% 0.042 92);
+  --color-error: oklch(50% 0.2 27);
+  --color-success: oklch(47% 0.13 152);
+
+  /* Faces: one family for display and text (as PayPal pairs Pro and Pro Text), mono for ids and hashes. */
+  --font-sans: var(--font-albert), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-albert), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-albert), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-azeret), ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  /* App scale: 1.2 from 16px. Display sizes for the home page only. */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.35;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.45;
+  --text-base: 1rem;
+  --text-base--line-height: 1.55;
+  --text-lg: 1.1875rem;
+  --text-lg--line-height: 1.4;
+  --text-xl: 1.4375rem;
+  --text-xl--line-height: 1.25;
+  --text-2xl: 1.75rem;
+  --text-2xl--line-height: 1.15;
+  --text-3xl: 2.125rem;
+  --text-3xl--line-height: 1.1;
+  --text-4xl: 2.75rem;
+  --text-4xl--line-height: 1.05;
+  --text-5xl: 3.5rem;
+  --text-5xl--line-height: 1.02;
+  --text-display: clamp(2.75rem, 4.4vw + 0.75rem, 5rem);
+  --text-section: clamp(2.25rem, 2.2vw + 1.25rem, 3.25rem);
+  --text-title: clamp(1.25rem, 0.75vw + 0.875rem, 1.625rem);
+  --text-lead: clamp(1.125rem, 0.35vw + 1rem, 1.3125rem);
+  --text-figure: clamp(2rem, 2vw + 1.25rem, 3rem);
+  --tracking-display: -0.035em;
+  --tracking-tight: -0.02em;
+
+  /* PayPal's radii: pills, soft cards, a 2.5rem plate corner. Concentric by level. */
+  --radius-xs: 0.375rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+  --radius-3xl: 2.5rem;
+  --radius-card: 1rem;
+  --radius-plate: 2.5rem;
+  --radius-pill: 999px;
+
+  /* Depth comes from overlapping flat plates, never from drop shadows. */
+  --shadow-2xs: 0 0 #0000;
+  --shadow-xs: 0 0 #0000;
+  --shadow-sm: 0 0 #0000;
+  --shadow-md: 0 0 #0000;
+  --shadow-lg: 0 0 #0000;
+  --shadow-xl: 0 0 #0000;
+  --shadow-2xl: 0 0 #0000;
+  --shadow-card: none;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --animate-stamp: stamp-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fade-in: fade-in 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-rack: rack-in 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  @keyframes stamp-in {
+    0% {
+      opacity: 0;
+      transform: scale(1.35) rotate(-4deg);
+    }
+    100% {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  /* A strip sliding into its bay on the clearance board. */
+  @keyframes rack-in {
+    from {
+      opacity: 0;
+      transform: translateX(-28px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+:root {
+  --space-3xs: 2px;
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --space-2xl: 64px;
+  --space-3xl: 96px;
+  --space-4xl: 144px;
+  --dur-micro: 120ms;
+  --dur-short: 220ms;
+  --dur-long: 420ms;
+  --container: 1360px;
+  --gutter: 64px;
+  --gap-columns: 24px;
+  --section-gap-s: 96px;
+  --section-gap: 128px;
+  --section-gap-l: 160px;
+  --nav-height: 64px;
+  --z-base: 1;
+  --z-raised: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-sticky-nav: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+  --z-tooltip: 600;
+  --rule-hair: 1px;
+}
+@media (max-width: 60rem) {
+  :root {
+    --gutter: 24px;
+    --section-gap-s: 72px;
+    --section-gap: 96px;
+    --section-gap-l: 120px;
+  }
+}
+@media (max-width: 40rem) {
+  :root {
+    --gutter: 16px;
+    --section-gap-s: 56px;
+    --section-gap: 72px;
+    --section-gap-l: 96px;
+    --gap-columns: 16px;
+  }
+}
+
+/* -------------------------------------------------------------------- base */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+  html,
+  body {
+    overflow-x: clip;
+  }
+  html {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-synthesis: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scrollbar-color: var(--color-edge) var(--color-paper);
+    scroll-padding-top: calc(var(--nav-height) + var(--space-md));
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    min-height: 100dvh;
+    margin: 0;
+    font-size: var(--text-base);
+    line-height: 1.55;
+    caret-color: var(--color-accent);
+    font-feature-settings: "ss01" 0;
+  }
+  ::selection {
+    background: var(--color-pp-blue);
+    color: var(--color-on-plate);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+  .on-night :focus-visible {
+    outline-color: var(--color-focus-on-night);
+  }
+  a {
+    color: inherit;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.18em;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: var(--tracking-tight);
+    overflow-wrap: break-word;
+    min-width: 0;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  data,
+  time,
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+  [hidden] {
+    display: none !important;
+  }
+}
+
+/* -------------------------------------------------------------- components */
+@layer components {
+  .container-page {
+    width: 100%;
+    max-width: var(--container);
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+  }
+
+  /* Perforated top edge for slip cards: the slip is torn from a pad. */
+  .slip-perforation {
+    background-image: radial-gradient(circle at 7px 0, transparent 4px, var(--color-card) 4.5px);
+    background-size: 14px 8px;
+    background-repeat: repeat-x;
+  }
+
+  /* Board racks: a hairline rail the strips sit on. */
+  .rack {
+    background-image: linear-gradient(var(--color-night-line), var(--color-night-line));
+    background-size: 100% 1px;
+    background-repeat: no-repeat;
+    background-position: 0 100%;
+  }
+
+  .clause-lit {
+    animation: clause-light 1ms linear both;
+    animation-delay: calc(var(--i, 0) * 260ms + 520ms);
+  }
+  @keyframes clause-light {
+    from {
+      background-color: var(--color-paper-deep);
+      color: var(--color-ink-soft);
+    }
+    to {
+      background-color: var(--color-stamp-red);
+      color: var(--color-on-plate);
+    }
+  }
+
+  /* Form fields: a field edge at 3:1, the focus ring an inset outline, never a border change. */
+  .field {
+    border: 1px solid var(--color-edge);
+    background: var(--color-card);
+    border-radius: var(--radius-md);
+  }
+  .field:focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: -1px;
+  }
+}
+
+/* One staggered arrival per screen: the strips racking into their bays. A utility, so motion-safe: works on it. */
+@utility rack-in {
+  animation: var(--animate-rack);
+  animation-delay: calc(var(--i, 0) * 260ms + 200ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *:not(.keep-motion),
+  *:not(.keep-motion)::before,
+  *:not(.keep-motion)::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

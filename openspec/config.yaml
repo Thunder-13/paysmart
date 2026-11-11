@@ -1,0 +1,43 @@
+schema: spec-driven
+
+context: |
+  Product: Permission Slip, the trust layer for AI money on PayPal. Every dollar an AI
+  touches carries a Slip (a signed mandate). Built for the PayPal AI Hackathon (Devpost),
+  deadline 2026-11-12 12:00 PST. Judged on Technological Implementation, Design, Potential
+  Impact, Innovation, Presentation (equal weight, ties break on Technological Implementation).
+
+  One orchestrator, six pipelines:
+    shop          1 Permission Slip shopping. Add-ons: voice (Talk to Pay, idea 4) and
+                  hire-a-helper child slips paid via Payouts (Hire Wire, idea 6).
+    second-look   2 scam interceptor; protected PayPal payment to a stranger.
+    bounty        3 bounty board; backer authorizations, photo-verified Payouts.
+    cash-weather  5+9 cash-flow forecast, invoice nudges, upstream maintainer payouts.
+    toll-road     7 HTTP 402 metered access for AI agents, settled on PayPal.
+    dispute-desk  8 merchant dispute copilot fed by hash-chained slip evidence.
+
+  Stack: TypeScript, Next.js 16 App Router (src/), React 19, Tailwind v4, zod v4,
+  @anthropic-ai/sdk (claude-sonnet-5-5 smart, claude-haiku-5-5 fast), node:sqlite,
+  vitest. PayPal via our own typed REST client (Orders v2, Payments v2 authorize/capture/
+  void/reauthorize/refund, Payouts v1, Invoicing v2, Reporting transactions, Disputes v1,
+  Shipment tracking, Webhooks). No @paypal/agent-toolkit (removed for audit reasons; it
+  also lacks authorize/capture/void). PayPal hosted sandbox MCP is broken (issue #119).
+
+  Frozen contract: src/core/contracts.ts. Pipelines import types from "@/core/contracts"
+  and helpers from "@/core/*" modules, and get runtime services through StepContext.
+  Everything must run offline in mock mode (mock rail + scripted AI) and against the real
+  PayPal sandbox + Anthropic when env keys exist. Every AI call supplies a deterministic
+  mock. Ownership rules: docs/CONVENTIONS.md.
+
+rules:
+  proposal:
+    - Include Why, What Changes, Impact, and a Non-goals list.
+    - Name the PayPal APIs and AI capabilities the change exercises.
+  specs:
+    - Use "## ADDED Requirements" with "### Requirement:" headers and SHALL/MUST wording.
+    - Every requirement has at least one "#### Scenario:" written as WHEN/THEN bullets.
+    - Cover at least one failure or abuse path (guard violation, injection, PayPal error).
+  design:
+    - Show the pipeline step graph (step names, waits, resume signals).
+    - List which CoreServices and PayPalRail methods each step calls.
+  tasks:
+    - Numbered checkbox tasks, each small enough to verify with a named test or command.

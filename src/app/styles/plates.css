@@ -1,0 +1,85 @@
+/* Hallmark · layer: plates (stamp, critique and waivers in globals.css) */
+:root {
+  --plate-rise: 28px;
+  --plate-stagger: 3%;
+  --plate-morph: 520ms;
+  --plate-nudge: 6px;
+  --plate-settle: 1.008;
+}
+
+/* The shared plate morph: home plate to header plate and back, a touch slower with an ease-out. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-group(plate-shop),
+  ::view-transition-group(plate-second-look),
+  ::view-transition-group(plate-bounty),
+  ::view-transition-group(plate-cash-weather),
+  ::view-transition-group(plate-toll-road),
+  ::view-transition-group(plate-dispute-desk) {
+    animation-duration: var(--plate-morph);
+    animation-timing-function: var(--ease-out);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(plate-shop),
+  ::view-transition-group(plate-second-look),
+  ::view-transition-group(plate-bounty),
+  ::view-transition-group(plate-cash-weather),
+  ::view-transition-group(plate-toll-road),
+  ::view-transition-group(plate-dispute-desk),
+  ::view-transition-old(plate-shop),
+  ::view-transition-old(plate-second-look),
+  ::view-transition-old(plate-bounty),
+  ::view-transition-old(plate-cash-weather),
+  ::view-transition-old(plate-toll-road),
+  ::view-transition-old(plate-dispute-desk),
+  ::view-transition-new(plate-shop),
+  ::view-transition-new(plate-second-look),
+  ::view-transition-new(plate-bounty),
+  ::view-transition-new(plate-cash-weather),
+  ::view-transition-new(plate-toll-road),
+  ::view-transition-new(plate-dispute-desk) {
+    animation: none;
+  }
+}
+
+/* Home plates rise into view as they scroll in. Transform only: opacity stays 1, so full-page captures show every plate. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .plate-card {
+      animation: plate-rise linear both;
+      animation-timeline: view();
+      animation-range: entry calc(var(--i, 0) * var(--plate-stagger)) cover 25%;
+    }
+  }
+}
+
+@keyframes plate-rise {
+  from {
+    translate: 0 var(--plate-rise);
+    scale: 0.985;
+  }
+  to {
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+.plate-card {
+  transition: transform 200ms var(--ease-out);
+}
+.plate-cue {
+  transition:
+    background-color 120ms,
+    color 120ms,
+    transform 200ms var(--ease-out);
+}
+
+@media (hover: hover) {
+  .plate-card:hover {
+    transform: scale(var(--plate-settle));
+  }
+  .plate-card:hover .plate-cue {
+    transform: translateX(var(--plate-nudge));
+  }
+}

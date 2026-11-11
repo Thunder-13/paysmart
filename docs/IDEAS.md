@@ -1,0 +1,21 @@
+# Idea coverage map
+
+All 9 ideas from [IDEATION.md](IDEATION.md) are built in this repo on one orchestrator. Each row names where the code lives and the test that proves it works.
+
+| # | Idea | Where it lives | Proof (test or command) |
+|---|---|---|---|
+| 1 | Permission Slip: plain-words mandate, PayPal AUTHORIZE hold, injection-proof guard, capture and release, refund on breach | `src/pipelines/shop/` (`steps.ts`, `tools.ts`, `agent.ts`, `compile.ts`, `delivery.ts`), page `/p/shop` | `src/pipelines/shop/shop.e2e.test.ts` (red-team run: OUTSIDE then WITHIN, capture, refund), `src/pipelines/shop/redteam.test.ts`, `npx vitest run src/pipelines/shop` |
+| 2 | Second Look: scam tactics read from the chat, Friends and Family swapped for a protected PayPal goods payment | `src/pipelines/second-look/` (`index.ts`, `analyze.ts`, `detectors.ts`, `offer.ts`), page `/p/second-look` | `src/pipelines/second-look/pipeline.test.ts`, `src/pipelines/second-look/analyze.test.ts`, `npx tsx scripts/second-look-smoke.ts` |
+| 3 | Bounty Board: backer authorizations, photo-verified proof, PayPal Payouts to the worker | `src/pipelines/bounty/` (`steps/lifecycle.ts`, `steps/pledge.ts`, `steps/settle.ts`, `checks.ts`, `dhash.ts`), page `/p/bounty` | `src/pipelines/bounty/lifecycle.test.ts`, `src/pipelines/bounty/settle.test.ts`, `npx tsx scripts/bounty-smoke.ts` |
+| 4 | Talk to Pay: voice dictation, spoken slip and verdicts, voice confirm | add-on inside Shop: `src/pipelines/shop/voice.ts`, `src/app/p/shop/voice-controls.tsx` | `src/pipelines/shop/voice.test.ts` (command matching, spoken slip and verdicts, speech support detection) |
+| 5 | Upstream: pay the open-source maintainers your code depends on | inside Cash Weather: `src/pipelines/cash-weather/upstream.ts`, `registry.ts`, `allocation.ts`, `budget.ts`, `steps/pay.ts` | `src/pipelines/cash-weather/upstream.test.ts` (parsing, registry data, allocation), `src/pipelines/cash-weather/pay.test.ts` (guarded Payouts batch) |
+| 6 | Hire Wire: agents hire helper agents under child slips, paid by Payouts | inside Shop: `src/pipelines/shop/helper.ts`, core child accounting in `src/core/services.ts` (`createChildSlip`, child shares in `settlePurchase`) | `src/pipelines/shop/helper.test.ts`, `src/pipelines/shop/steps.settle.test.ts` (helper paid, $45.18 captured), `src/core/services.test.ts` ("child slips") |
+| 7 | Toll Road: HTTP 402 metered access for AI agents, settled on PayPal | `src/pipelines/toll-road/` (`gateway.ts`, `metering.ts`, `crawler.ts`, `settlement.ts`), gateway `/api/p/toll-road/content/[id]`, page `/p/toll-road` | `src/pipelines/toll-road/pipeline.test.ts`, `src/pipelines/toll-road/gateway.test.ts`, `src/pipelines/toll-road/routes.test.ts` |
+| 8 | Dispute Desk: merchant dispute response built from hash-chained slip evidence | `src/pipelines/dispute-desk/` (`steps.ts`, `link.ts`, `quarantine.ts`, `rules.ts`, `documents.ts`), page `/p/dispute-desk` | `src/pipelines/dispute-desk/pipeline.test.ts`, `src/pipelines/dispute-desk/quarantine.test.ts`, `npx tsx scripts/dispute-desk-smoke.ts` |
+| 9 | Cash Weather: 90-day forecast from PayPal transactions and invoices, tone-matched invoice nudges | `src/pipelines/cash-weather/` (`forecast.ts`, `nudges.ts`, `tone.ts`, `narrative.ts`), page `/p/cash-weather` | `src/pipelines/cash-weather/forecast.test.ts`, `src/pipelines/cash-weather/nudges.test.ts`, `src/pipelines/cash-weather/run.test.ts` |
+
+Shared by all nine: `src/core/contracts.ts` (frozen contract), `src/core/guard.ts`, the hash-chained ledger in `src/core/store/sqlite.ts`, the PayPal rail (`src/core/rail/sandbox.ts` and `src/core/rail/mock.ts`), the AI runtime in `src/core/ai/`, and the orchestrator in `src/core/orchestrator.ts`.
+
+PaySmart is the front door: the home page opens on its ask box (`src/app/_home/paysmart-band.tsx`) and it sends non-shopping asks to the other pipelines' pages. It is not one of the nine ideas.
+
+Across all seven pipelines: `npm run demo:seed` runs every pipeline to the end in mock mode (`src/server/demo-seed.ts`, tested by `src/server/demo-seed.test.ts` and `scripts/demo-seed.test.ts`), and `npm run redteam` runs each pipeline's attack fixture (`scripts/redteam-suite.ts`, tested by `scripts/redteam.test.ts`).

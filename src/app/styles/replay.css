@@ -1,0 +1,269 @@
+/* Hallmark · layer: replay (stamp, critique and waivers in globals.css) */
+
+:root {
+  --replay-settle: 300ms;
+  --replay-compile-at: 300ms;
+  --replay-compile-step: 80ms;
+  --replay-compile: 320ms;
+  --replay-seal-at: 1100ms;
+  --replay-t0: 1400ms;
+  --replay-step: 1200ms;
+  --replay-rack: 520ms;
+  --replay-scan-at: 350ms;
+  --replay-scan: 650ms;
+  --replay-chip-step: 150ms;
+  --replay-stamp-at: 1000ms;
+  --replay-stamp: 1000ms;
+  --replay-caption-at: 4300ms;
+  --replay-band-t0: 200ms;
+  --replay-band-step: 260ms;
+}
+
+/* ------------------------------------------------------------ the slip */
+.replay-slip {
+  animation: replay-settle var(--replay-settle) var(--ease-out) both;
+}
+.replay-row {
+  animation: replay-compile var(--replay-compile) var(--ease-out) both;
+  animation-delay: calc(var(--replay-compile-at) + var(--k, 0) * var(--replay-compile-step));
+}
+.replay-seal {
+  animation: replay-seal 260ms var(--ease-out) both;
+  animation-delay: var(--replay-seal-at);
+}
+
+/* A clause lights when ITS strip's scan reaches it: strip start, plus scan lead, plus its place in the strip's broken list. */
+.clause-lit {
+  --replay-t: calc(var(--replay-t0) + var(--i, 0) * var(--replay-step));
+  animation: clause-light 1ms linear both;
+  animation-delay: calc(var(--replay-t) + var(--replay-scan-at) + (var(--j, 0) + 1) * var(--replay-chip-step));
+}
+
+/* ------------------------------------------------------------ the strips */
+.replay-strip {
+  position: relative;
+  isolation: isolate;
+  animation: replay-rack var(--replay-rack) var(--ease-out) both;
+  animation-delay: var(--replay-t);
+}
+.replay-strip--hero {
+  --replay-t: calc(var(--replay-t0) + var(--i, 0) * var(--replay-step));
+}
+.replay-strip--band {
+  --replay-t: calc(var(--replay-band-t0) + var(--i, 0) * var(--replay-band-step));
+}
+
+.replay-scan {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-base);
+  pointer-events: none;
+  animation: replay-scan var(--replay-scan) var(--ease-in-out) both;
+  animation-delay: calc(var(--replay-t) + var(--replay-scan-at));
+}
+.replay-scan--rtl {
+  animation-name: replay-scan-rtl;
+}
+.replay-scan::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  width: 3px;
+  background: var(--color-pp-sky);
+}
+.replay-scan--rtl::after {
+  right: auto;
+  left: 0;
+}
+.replay-strip--band .replay-scan {
+  animation-duration: 520ms;
+}
+
+.replay-chip {
+  animation: replay-chip 200ms var(--ease-out) both;
+  animation-delay: calc(var(--replay-t) + var(--replay-scan-at) + (var(--j, 0) + 1) * var(--replay-chip-step));
+}
+
+/* The pass: a within strip's check glyph draws in as the scan arrives at the holder. */
+.replay-check {
+  animation: replay-check 260ms var(--ease-out) both;
+  animation-delay: calc(var(--replay-t) + var(--replay-scan-at) + var(--replay-scan) - 160ms);
+}
+
+/* ------------------------------------------------------------ the stamp */
+.replay-stamp {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-raised);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.replay-stamp > span {
+  animation: replay-stamp var(--replay-stamp) var(--ease-out) both;
+  animation-delay: calc(var(--replay-t) + var(--replay-stamp-at));
+}
+
+/* ------------------------------------------------------------ the caption */
+.replay-caption {
+  animation: replay-fade 320ms var(--ease-out) both;
+  animation-delay: var(--replay-caption-at);
+}
+
+/* ------------------------------------------------------------ keyframes */
+@keyframes replay-settle {
+  from {
+    transform: translateY(-14px) rotate(3deg);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes replay-compile {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes replay-seal {
+  from {
+    opacity: 0;
+    transform: scale(1.9) rotate(-14deg);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-6deg);
+  }
+}
+@keyframes replay-rack {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes replay-scan {
+  0% {
+    opacity: 1;
+    transform: translateX(-100%);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+}
+@keyframes replay-scan-rtl {
+  0% {
+    opacity: 1;
+    transform: translateX(100%);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+}
+@keyframes replay-chip {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes replay-check {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+@keyframes replay-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(2) rotate(-9deg);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(1) rotate(-4deg);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1) rotate(-4deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1) rotate(-4deg) translateY(-8px);
+  }
+}
+@keyframes replay-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ------------------------------------------------------------ replay action */
+.replay-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 44px;
+  padding-inline: var(--space-2xs);
+  font-size: 0.875rem;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  color: var(--color-on-night);
+  text-decoration: underline;
+  text-decoration-color: var(--color-night-line);
+  text-underline-offset: 6px;
+  transition: color 120ms var(--ease-out);
+}
+.replay-action:active {
+  color: var(--color-pp-sky);
+}
+@media (hover: hover) {
+  .replay-action:hover {
+    text-decoration-color: var(--color-pp-sky);
+  }
+}
+
+/* ------------------------------------------------ cold board: the guard waiting for its first call */
+:root {
+  --replay-idle-scan: 6200ms;
+}
+.replay-idle-bar {
+  animation: replay-idle-scan var(--replay-idle-scan) ease-in-out infinite alternate;
+}
+@keyframes replay-idle-scan {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .replay-idle {
+    display: none;
+  }
+}

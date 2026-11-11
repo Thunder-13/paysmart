@@ -1,0 +1,102 @@
+/* Hallmark · layer: motion (stamp, critique and waivers in globals.css) */
+:root {
+  --motion-route-out: 140ms;
+  --motion-route-in: 280ms;
+  --motion-route-in-delay: 90ms;
+  --motion-route-rise: 10px;
+}
+
+
+/* ----------------------------------------------------------- route transitions */
+::view-transition {
+  pointer-events: none;
+}
+
+/* The unnamed rest of the page (paper, footer) swaps without a crossfade; the wrapped body carries the motion. */
+::view-transition-old(root) {
+  display: none;
+}
+::view-transition-new(root) {
+  animation: none;
+}
+
+::view-transition-old(.route-out) {
+  animation: var(--motion-route-out) ease-in both route-fade reverse;
+}
+::view-transition-new(.route-in) {
+  animation:
+    var(--motion-route-in) var(--ease-out) var(--motion-route-in-delay) both route-fade,
+    var(--motion-route-in) var(--ease-out) var(--motion-route-in-delay) both route-rise;
+}
+@keyframes route-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes route-rise {
+  from {
+    transform: translateY(var(--motion-route-rise));
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* The header never moves or flashes. */
+.site-header {
+  view-transition-name: site-header;
+}
+::view-transition-group(site-header) {
+  animation: none;
+  z-index: var(--z-sticky-nav);
+}
+::view-transition-old(site-header) {
+  display: none;
+}
+::view-transition-new(site-header) {
+  animation: none;
+}
+
+/* One active pill glides between links. Only the visible nav is rendered, so the name stays unique. */
+.nav-pill-active {
+  view-transition-name: nav-active;
+}
+::view-transition-group(nav-active) {
+  animation-duration: 320ms;
+  animation-timing-function: var(--ease-out);
+  z-index: var(--z-modal);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-image-pair(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/* ----------------------------------------------------------------- header polish */
+.site-header {
+  border-bottom: 1px solid transparent;
+  transition-property: border-color;
+  transition-duration: 200ms;
+  transition-timing-function: var(--ease-out);
+}
+html[data-scrolled] .site-header {
+  border-bottom-color: var(--color-night-line);
+}
+
+@media (hover: hover) {
+  .nav-link:not(.nav-pill-active):hover {
+    background-color: var(--color-night-2);
+    color: var(--color-on-night);
+  }
+  .footer-link:hover {
+    color: var(--color-on-night);
+    text-decoration-color: var(--color-on-night);
+  }
+}
