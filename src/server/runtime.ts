@@ -4,6 +4,7 @@
  *   AI_MODE       anthropic only when ANTHROPIC_API_KEY exists, else mock
  *   APP_BASE_URL  default RENDER_EXTERNAL_URL (on Render), else http://localhost:3000
  *   DATA_DIR      default ./data (SQLite file permission-slip.db)
+ *   TURSO_DATABASE_URL, TURSO_AUTH_TOKEN  shared remote libSQL store instead of the local file
  */
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -12,7 +13,7 @@ import { createMockAI } from "@/core/ai/mock";
 import { asMockRail, createMockRail, type MockRail } from "@/core/rail/mock";
 import { createSandboxRail } from "@/core/rail/sandbox";
 import { buildRuntime, type AppRuntime } from "@/core/runtime-factory";
-import { createSqliteStore } from "@/core/store/sqlite";
+import { createLibsqlStore, createSqliteStore } from "@/core/store/sqlite";
 import { pipelines } from "@/pipelines/registry";
 import { resolveConfig, type ResolvedConfig } from "./config";
 import { restoreDemoDisputes } from "./demo-restore";
@@ -27,8 +28,10 @@ const KEY = "__permissionSlipRuntime";
 
 function createServerRuntime(env: Record<string, string | undefined> = process.env): ServerRuntime {
   const config = resolveConfig(env);
-  mkdirSync(config.dataDir, { recursive: true });
-  const store = createSqliteStore(path.join(config.dataDir, "permission-slip.db"));
+  if (!config.libsqlUrl) mkdirSync(config.dataDir, { recursive: true });
+  const store = config.libsqlUrl
+    ? createLibsqlStore({ url: config.libsqlUrl, authToken: config.libsqlAuthToken ?? undefined })
+    : createSqliteStore(path.join(config.dataDir, "permission-slip.db"));
   const rail =
     config.paypalMode === "sandbox"
       ? createSandboxRail({
@@ -37,7 +40,9 @@ function createServerRuntime(env: Record<string, string | undefined> = process.e
           webhookId: env.PAYPAL_WEBHOOK_ID ?? "",
           baseUrl: env.PAYPAL_API_BASE || undefined,
         })
-      : createMockRail({ baseUrl: config.baseUrl });
+      : // With a shared database (several Vercel instances), the mock rail keeps its state there too,
+        // so an order made on one instance can be approved on another.
+        createMockRail({ baseUrl: config.baseUrl, store: config.libsqlUrl ? store : undefined });
   const ai =
     config.aiMode === "anthropic"
       ? createAnthropicAI({

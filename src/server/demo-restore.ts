@@ -38,15 +38,21 @@ export function readDemoStory(store: Store): DemoStoryDoc | null {
 }
 
 /**
- * Re-seeds the saved demo disputes the mock rail is missing. Returns how many it put back.
+ * Re-seeds the saved demo disputes the mock rail is missing (by id; never touches one it already has). Returns how many it put back.
  * Synchronous on purpose: it runs inside createServerRuntime. Never throws.
  */
-export function restoreDemoDisputes(store: Store, controls: Pick<MockRailControls, "seedDisputes"> | null, present: string[] = []): number {
+export function restoreDemoDisputes(
+  store: Store,
+  controls: (Pick<MockRailControls, "seedDisputes"> & { disputeIds?: () => string[] }) | null,
+  present: string[] = [],
+): number {
   if (!controls) return 0;
   try {
     const doc = readDemoStory(store);
     if (!doc || doc.disputes.length === 0) return 0;
-    const have = new Set(present);
+    // A rail with shared state already holds the live disputes, and seeding the saved snapshot over
+    // one would roll back its status and messages. Ask the rail which ids it has.
+    const have = new Set([...present, ...(controls.disputeIds?.() ?? [])]);
     const missing = doc.disputes.filter((d) => !have.has(d.id));
     if (missing.length) controls.seedDisputes(missing);
     return missing.length;

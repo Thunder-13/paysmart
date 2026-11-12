@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
+    "libsql": "0.5.29",
     "next": "16.4.5",
     "react": "19.3.0",
     "react-dom": "19.3.0",

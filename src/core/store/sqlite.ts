@@ -4,6 +4,7 @@
  */
 import { EventEmitter } from "node:events";
 import { DatabaseSync } from "node:sqlite";
+import LibsqlDatabase from "libsql";
 import {
   SlipSchema,
   type Actor,
@@ -22,10 +23,117 @@ import { newId } from "../ids";
 import { zeroMoney } from "../money";
 import { GENESIS, ledgerHash, normalizeJson } from "./canonical";
 
+/** Positional SQL parameter values. Named parameters are not supported (libsql remote rejects them). */
+type SqlParam = string | number | bigint | null;
+
+export interface SqlStatement {
+  run(...params: SqlParam[]): unknown;
+  get(...params: SqlParam[]): Record<string, unknown> | undefined;
+  all(...params: SqlParam[]): Record<string, unknown>[];
+}
+
+/** The slice of a SQLite handle the store uses. node:sqlite and the libsql wrapper both satisfy it. */
+export interface SqlDb {
+  exec(sql: string): void;
+  prepare(sql: string): SqlStatement;
+  close(): void;
+}
+
 export interface SqliteStore extends Store {
   /** Raw handle, for tests (tamper checks) and maintenance scripts. */
-  readonly db: DatabaseSync;
+  readonly db: SqlDb;
   close(): void;
+}
+
+export interface LibsqlStoreOptions {
+  url: string;
+  authToken?: string;
+  now?: () => Date;
+}
+
+/** libsql adds a `_metadata` key to every row in remote mode; drop it so rows match node:sqlite. */
+function cleanRow<T>(row: T): T {
+  if (row && typeof row === "object" && "_metadata" in row) {
+    const { _metadata: _drop, ...rest } = row as Record<string, unknown>;
+    void _drop;
+    return rest as T;
+  }
+  return row;
+}
+
+/**
+ * The remote connection rides one server-side stream, and the server drops a stream after a few
+ * seconds idle ("STREAM_EXPIRED"). libsql does not reconnect on its own, so a server instance that
+ * sat idle would fail every query after that. Reopen when the handle has been idle a while, and
+ * reopen-and-retry once when the stream is gone. Never inside a transaction: its stream is its state.
+ */
+const IDLE_REOPEN_MS = 4_000;
+
+function isStreamGone(e: unknown): boolean {
+  const m = e instanceof Error ? e.message : String(e);
+  return /STREAM_EXPIRED|stream has expired|stream not found|invalid baton/i.test(m);
+}
+
+function wrapLibsql(url: string, authToken?: string): SqlDb {
+  type Raw = InstanceType<typeof LibsqlDatabase>;
+  const open = (): Raw => new LibsqlDatabase(url, (authToken ? { authToken } : {}) as object); // authToken is accepted at runtime but missing from the package types
+  let raw = open();
+  let lastUsed = Date.now();
+  let inTx = false;
+
+  function reopen(): void {
+    try {
+      raw.close();
+    } catch {
+      // The old handle may already be dead; that's why we're here.
+    }
+    raw = open();
+  }
+
+  function call<T>(fn: (db: Raw) => T): T {
+    if (!inTx && Date.now() - lastUsed > IDLE_REOPEN_MS) reopen();
+    try {
+      return fn(raw);
+    } catch (e) {
+      if (inTx || !isStreamGone(e)) throw e;
+      reopen();
+      return fn(raw);
+    } finally {
+      lastUsed = Date.now();
+    }
+  }
+
+  return {
+    exec(sql) {
+      const head = sql.trimStart().slice(0, 8).toUpperCase();
+      if (head.startsWith("BEGIN")) {
+        call((db) => db.exec(sql));
+        inTx = true;
+      } else if (head.startsWith("COMMIT") || head.startsWith("ROLLBACK") || head.startsWith("END")) {
+        try {
+          raw.exec(sql);
+        } finally {
+          inTx = false;
+          lastUsed = Date.now();
+        }
+      } else {
+        call((db) => db.exec(sql));
+      }
+    },
+    // Prepare per call: a remote statement prepared before BEGIN runs outside that transaction
+    // (the later COMMIT then fails with "no transaction is active"). Preparing is cheap (no round trip).
+    prepare(sql) {
+      return {
+        run: (...params) => call((db) => db.prepare(sql).run(...params)),
+        get: (...params) => {
+          const row = call((db) => db.prepare(sql).get(...params)) as Record<string, unknown> | undefined | null;
+          return row === undefined || row === null ? undefined : cleanRow(row);
+        },
+        all: (...params) => (call((db) => db.prepare(sql).all(...params)) as Record<string, unknown>[]).map(cleanRow),
+      };
+    },
+    close: () => void raw.close(),
+  };
 }
 
 const SCHEMA = `
@@ -96,12 +204,21 @@ function railIds(slip: Slip): string[] {
 }
 
 export function createSqliteStore(path: string | ":memory:", opts: { now?: () => Date } = {}): SqliteStore {
-  const now = opts.now ?? (() => new Date());
-  const db = new DatabaseSync(path);
+  const db = new DatabaseSync(path) as unknown as SqlDb;
   if (path !== ":memory:") {
     db.exec("PRAGMA journal_mode = WAL;");
     db.exec("PRAGMA busy_timeout = 5000;");
   }
+  return buildStore(db, opts.now);
+}
+
+/** Store on a remote libSQL (Turso) database, shared by every server instance. */
+export function createLibsqlStore(opts: LibsqlStoreOptions): SqliteStore {
+  return buildStore(wrapLibsql(opts.url, opts.authToken), opts.now);
+}
+
+function buildStore(db: SqlDb, nowFn?: () => Date): SqliteStore {
+  const now = nowFn ?? (() => new Date());
   db.exec(SCHEMA);
 
   const emitter = new EventEmitter();
@@ -114,7 +231,11 @@ export function createSqliteStore(path: string | ":memory:", opts: { now?: () =>
       db.exec("COMMIT");
       return out;
     } catch (e) {
-      db.exec("ROLLBACK");
+      try {
+        db.exec("ROLLBACK");
+      } catch {
+        // Remote libSQL may already have ended the transaction on a failed statement; keep the original error.
+      }
       throw e;
     }
   }
@@ -211,7 +332,7 @@ export function createSqliteStore(path: string | ":memory:", opts: { now?: () =>
         params.push(filter.status);
       }
       const sql = `SELECT json FROM slips ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY created_at DESC, rowid DESC`;
-      return (db.prepare(sql).all(...params) as Row[]).map((r) => readSlip(r.json));
+      return db.prepare(sql).all(...params).map((r) => readSlip(r.json));
     },
     findByRailId(railId: string): Slip | null {
       const row = stmt.findRail.get(railId) as Row | undefined;

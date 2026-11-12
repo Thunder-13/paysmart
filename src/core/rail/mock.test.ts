@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { money } from "../money";
+import { createSqliteStore } from "../store/sqlite";
 import { PayPalError } from "./errors";
-import { asMockRail, createMockRail } from "./mock";
+import { asMockRail, createMockRail, MOCK_RAIL_CALL_LOG_LIMIT, MOCK_RAIL_STATE_KEY, type MockRailState } from "./mock";
 
 const now = () => new Date("2026-11-08T12:00:00.000Z");
 
@@ -178,5 +179,109 @@ describe("mock rail: seeded data and controls", () => {
     const rail = createMockRail({ baseUrl: "http://x", now });
     expect(asMockRail(rail)).toBe(rail);
     expect(asMockRail({ ...rail, mode: "sandbox" } as never)).toBeNull();
+  });
+
+  describe("shared store", () => {
+    const orderInput = {
+      intent: "AUTHORIZE" as const,
+      amount: money("30.00"),
+      description: "shared",
+      customId: "slip_s",
+      returnUrl: "http://x/return",
+      cancelUrl: "http://x/cancel",
+    };
+    const twoRails = () => {
+      const store = createSqliteStore(":memory:");
+      const a = createMockRail({ baseUrl: "http://x", now, store });
+      const b = createMockRail({ baseUrl: "http://x", now, store });
+      return { store, a, b };
+    };
+
+    it("two rails on one store act as one rail", async () => {
+      const { a, b } = twoRails();
+      const order = await a.createOrder(orderInput);
+      expect(b.inspectOrder(order.orderId)?.status).toBe("CREATED");
+      expect((await b.getOrder(order.orderId)).status).toBe("CREATED");
+      b.approveOrder(order.orderId, "buyer@example.com");
+      expect(a.inspectOrder(order.orderId)).toMatchObject({ status: "APPROVED", payerEmail: "buyer@example.com" });
+      const auth = await a.authorizeOrder(order.orderId);
+      const cap = await a.captureAuthorization(auth.authorizationId, { amount: money("30.00"), finalCapture: true, invoiceId: "INV-1" });
+      expect(b.inspectAuthorization(auth.authorizationId)?.status).toBe("CAPTURED");
+      expect(b.inspectCapture(cap.captureId)?.status).toBe("COMPLETED");
+      await b.refundCapture(cap.captureId, { amount: money("10.00") });
+      expect(a.inspectCapture(cap.captureId)).toMatchObject({ status: "PARTIALLY_REFUNDED", refundedCents: 1000 });
+      expect(await issue(a.captureAuthorization(auth.authorizationId, { amount: money("1.00"), finalCapture: false }))).toBe("AUTHORIZATION_ALREADY_CAPTURED");
+      const txns = await a.listTransactions({ startDate: "2026-11-08T00:00:00.000Z", endDate: "2026-11-09T00:00:00.000Z" });
+      expect(txns.map((t) => t.amount.value)).toEqual(["30.00", "-10.00"]);
+      expect((await b.listTransactions({ startDate: "2026-11-08T00:00:00.000Z", endDate: "2026-11-09T00:00:00.000Z" })).length).toBe(2);
+    });
+
+    it("shares dedupe sets, payouts and tracking", async () => {
+      const { a, b } = twoRails();
+      const payout = { senderBatchId: "batch-1", emailSubject: "s", items: [{ senderItemId: "i1", receiverEmail: "r@example.com", amount: money("5.00"), note: "n" }] };
+      const res = await a.createPayout(payout);
+      expect(await issue(b.createPayout(payout))).toBe("DUPLICATE_REQUEST_ID");
+      expect(b.inspectPayout(res.payoutBatchId)?.items).toHaveLength(1);
+      const order = await a.createOrder({ ...orderInput, intent: "CAPTURE" });
+      b.approveOrder(order.orderId, "buyer@example.com");
+      const cap = await a.captureOrder(order.orderId);
+      await b.addTracking({ orderId: order.orderId, captureId: cap.captureId, trackingNumber: "T1", carrier: "UPS" });
+      expect(a.inspectTracking(cap.captureId)).toHaveLength(1);
+    });
+
+    it("a failing call still saves what it changed before throwing, and errors stay PayPalErrors", async () => {
+      const { a, b } = twoRails();
+      const order = await a.createOrder(orderInput);
+      expect(await issue(b.authorizeOrder(order.orderId))).toBe("ORDER_NOT_APPROVED");
+      expect(a.calls().map((c) => c.method)).toEqual(["createOrder", "authorizeOrder"]);
+      expect(() => b.approveOrder("NOPE", "x@example.com")).toThrow(PayPalError);
+    });
+
+    it("a second rail does not re-seed or wipe an existing doc", async () => {
+      const store = createSqliteStore(":memory:");
+      const a = createMockRail({ baseUrl: "http://x", now, store });
+      const order = await a.createOrder(orderInput);
+      a.seedInvoices([{ id: "INV-X", number: "9", status: "SENT", recipientEmail: "e@example.com", recipientName: "E", amount: money("1.00"), dueDate: "2026-12-01", issuedAt: "2026-11-01" }]);
+      const before = store.collection<MockRailState>("core", "mock-rail").get(MOCK_RAIL_STATE_KEY)!;
+      const b = createMockRail({ baseUrl: "http://x", now, store, seed: false });
+      expect(store.collection<MockRailState>("core", "mock-rail").get(MOCK_RAIL_STATE_KEY)).toEqual(before);
+      expect(b.inspectOrder(order.orderId)).not.toBeNull();
+      expect((await b.listInvoices()).map((i) => i.id)).toContain("INV-X");
+      expect((await b.listInvoices()).length).toBe(5);
+      expect((await b.listDisputes()).length).toBe(2);
+    });
+
+    it("seeds a fresh store once, including seed:false emptiness", async () => {
+      const store = createSqliteStore(":memory:");
+      const empty = createMockRail({ baseUrl: "http://x", now, store, seed: false });
+      expect(await empty.listDisputes()).toEqual([]);
+      const later = createMockRail({ baseUrl: "http://x", now, store });
+      expect(await later.listDisputes()).toEqual([]);
+    });
+
+    it("controls persist and stay deduplicated by id", async () => {
+      const { a, b } = twoRails();
+      const [d] = await a.listDisputes();
+      a.seedDisputes([d]);
+      b.seedDisputes([{ ...d, status: "UNDER_REVIEW" }]);
+      const list = await a.listDisputes();
+      expect(list).toHaveLength(2);
+      expect(list.find((x) => x.id === d.id)?.status).toBe("UNDER_REVIEW");
+      expect(b.disputeIds().sort()).toEqual(list.map((x) => x.id).sort());
+      await a.acceptClaim(d.id, "ok");
+      expect((await b.getDispute(d.id)).status).toBe("RESOLVED");
+      b.seedTransactions([{ id: "T-1", date: "2026-11-01T00:00:00.000Z", amount: money("1.00"), counterparty: "c", note: null }]);
+      b.seedTransactions([{ id: "T-1", date: "2026-11-01T00:00:00.000Z", amount: money("1.00"), counterparty: "c", note: null }]);
+      const all = await a.listTransactions({ startDate: "2026-11-01T00:00:00.000Z", endDate: "2026-11-01T00:00:00.000Z" });
+      expect(all.filter((t) => t.id === "T-1")).toHaveLength(1);
+    });
+
+    it("shares and bounds the call log", async () => {
+      const { store, a, b } = twoRails();
+      for (let i = 0; i < MOCK_RAIL_CALL_LOG_LIMIT + 20; i++) await (i % 2 ? a : b).listInvoices();
+      expect(a.calls()).toHaveLength(MOCK_RAIL_CALL_LOG_LIMIT);
+      expect(b.calls()).toHaveLength(MOCK_RAIL_CALL_LOG_LIMIT);
+      expect(store.collection<MockRailState>("core", "mock-rail").get(MOCK_RAIL_STATE_KEY)!.callLog).toHaveLength(MOCK_RAIL_CALL_LOG_LIMIT);
+    });
   });
 });

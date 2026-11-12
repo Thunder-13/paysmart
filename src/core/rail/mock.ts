@@ -12,6 +12,7 @@ import type {
   RailDispute,
   RailInvoice,
   RailTransaction,
+  Store,
 } from "../contracts";
 import { randomToken } from "../ids";
 import { fromCents, toCents } from "../money";
@@ -72,7 +73,31 @@ export interface MockRailInspect {
   inspectCapture(captureId: string): MockCapture | null;
   inspectPayout(payoutBatchId: string): MockPayout | null;
   inspectTracking(captureId: string): { trackingNumber: string; carrier: string; notifyPayer: boolean }[];
+  /** Ids of the disputes on the rail right now (restoreDemoDisputes uses it to avoid overwriting live state). */
+  disputeIds(): string[];
 }
+
+/** The whole rail state as one JSON document, persisted when createMockRail gets a store. */
+export interface MockRailState {
+  version: 1;
+  orders: MockOrder[];
+  auths: MockAuthorization[];
+  captures: MockCapture[];
+  refunds: { id: string; captureId: string; amount: Money }[];
+  payouts: MockPayout[];
+  senderBatchIds: string[];
+  invoiceIdsUsed: string[];
+  tracking: [string, { trackingNumber: string; carrier: string; notifyPayer: boolean }[]][];
+  seededTransactions: RailTransaction[];
+  liveTransactions: RailTransaction[];
+  invoices: RailInvoice[];
+  disputes: RailDispute[];
+  callLog: { method: string; args: unknown[]; at: string }[];
+}
+
+export const MOCK_RAIL_STATE_KEY = "state";
+/** Newest call-log entries kept in the persisted doc. */
+export const MOCK_RAIL_CALL_LOG_LIMIT = 200;
 
 export type MockRail = PayPalRail & MockRailControls & MockRailInspect;
 
@@ -265,7 +290,18 @@ export function defaultSeed(now: Date): { transactions: RailTransaction[]; invoi
   return { transactions, invoices, disputes };
 }
 
-export function createMockRail(opts: { baseUrl: string; now?: () => Date; seed?: boolean }): MockRail {
+export function createMockRail(opts: {
+  baseUrl: string;
+  now?: () => Date;
+  seed?: boolean;
+  /**
+   * Shared state. With a store, every public rail, control and inspect call loads the latest
+   * `core/mock-rail` doc first and saves it afterwards, so several server instances act as one rail
+   * (last writer wins). Seeding happens only when no doc exists yet. Without a store the state lives
+   * in this closure only.
+   */
+  store?: Store;
+}): MockRail {
   const now = opts.now ?? (() => new Date());
   const baseUrl = opts.baseUrl.replace(/\/+$/, "");
   const orders = new Map<string, MockOrder>();
@@ -279,10 +315,10 @@ export function createMockRail(opts: { baseUrl: string; now?: () => Date; seed?:
   const seed = opts.seed === false ? { transactions: [], invoices: [], disputes: [] } : defaultSeed(now());
   let seededTransactions: RailTransaction[] = seed.transactions;
   /** Money that moved through this rail (captures in, refunds and payouts out). */
-  const liveTransactions: RailTransaction[] = [];
+  let liveTransactions: RailTransaction[] = [];
   let invoices: RailInvoice[] = seed.invoices;
   let disputes: RailDispute[] = seed.disputes;
-  const callLog: { method: string; args: unknown[]; at: string }[] = [];
+  let callLog: { method: string; args: unknown[]; at: string }[] = [];
 
   function order(id: string): MockOrder {
     return orders.get(id) ?? notFound("Order", id);
@@ -588,6 +624,9 @@ export function createMockRail(opts: { baseUrl: string; now?: () => Date; seed?:
     inspectTracking(captureId) {
       return [...(tracking.get(captureId) ?? [])];
     },
+    disputeIds() {
+      return disputes.map((d) => d.id);
+    },
   };
 
   // Record every PayPalRail call (including ones that throw) for tests and the demo console.
@@ -598,6 +637,74 @@ export function createMockRail(opts: { baseUrl: string; now?: () => Date; seed?:
       callLog.push({ method: name, args: JSON.parse(JSON.stringify(args ?? [])) as unknown[], at: now().toISOString() });
       return original(...args);
     };
+  }
+
+  // Shared state. Every rail method body is synchronous (no await), so for an `async` method the whole
+  // body has run by the time the call returns its promise. Load before, save in `finally` after, in
+  // the same tick: nothing in this process can interleave. Keep it that way: never add an await
+  // inside a rail method body.
+  const shared = opts.store?.collection<MockRailState>("core", "mock-rail");
+  if (shared) {
+    const snapshot = (): MockRailState => ({
+      version: 1,
+      orders: [...orders.values()],
+      auths: [...auths.values()],
+      captures: [...captures.values()],
+      refunds: [...refunds.values()],
+      payouts: [...payouts.values()],
+      senderBatchIds: [...senderBatchIds],
+      invoiceIdsUsed: [...invoiceIdsUsed],
+      tracking: [...tracking.entries()],
+      seededTransactions,
+      liveTransactions,
+      invoices,
+      disputes,
+      callLog: callLog.slice(-MOCK_RAIL_CALL_LOG_LIMIT),
+    });
+    const hydrate = (raw: MockRailState): void => {
+      const d = structuredClone(raw);
+      const fill = <K, V>(m: Map<K, V>, entries: [K, V][]) => {
+        m.clear();
+        for (const [k, v] of entries) m.set(k, v);
+      };
+      fill(orders, d.orders.map((o) => [o.id, o]));
+      fill(auths, d.auths.map((a) => [a.id, a]));
+      fill(captures, d.captures.map((c) => [c.id, c]));
+      fill(refunds, d.refunds.map((r) => [r.id, r]));
+      fill(payouts, d.payouts.map((p) => [p.payoutBatchId, p]));
+      fill(tracking, d.tracking);
+      senderBatchIds.clear();
+      for (const x of d.senderBatchIds) senderBatchIds.add(x);
+      invoiceIdsUsed.clear();
+      for (const x of d.invoiceIdsUsed) invoiceIdsUsed.add(x);
+      seededTransactions = d.seededTransactions;
+      liveTransactions = d.liveTransactions;
+      invoices = d.invoices;
+      disputes = d.disputes;
+      callLog = d.callLog;
+    };
+    const load = (): void => {
+      const raw = shared.get(MOCK_RAIL_STATE_KEY);
+      if (raw) hydrate(raw);
+    };
+    const save = (): void => {
+      shared.put(MOCK_RAIL_STATE_KEY, snapshot());
+    };
+    const sandwich = <A extends unknown[], R>(fn: (...args: A) => R) =>
+      (...args: A): R => {
+        load();
+        try {
+          return fn(...args);
+        } finally {
+          save();
+        }
+      };
+    const wrapped = rail as unknown as Record<string, unknown>;
+    for (const [key, value] of Object.entries(wrapped)) {
+      if (typeof value === "function") wrapped[key] = sandwich(value as (...args: unknown[]) => unknown);
+    }
+    // First instance seeds; later ones keep whatever is already persisted.
+    if (!shared.get(MOCK_RAIL_STATE_KEY)) save();
   }
   return rail;
 }

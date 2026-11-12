@@ -1,0 +1,12 @@
+# Keep secrets and local working files out of Vercel CLI uploads.
+.env
+.env.*
+!.env.example
+/data
+/shots
+/.hallmark
+/.impeccable
+/.claude
+/.next
+/node_modules
+*.tsbuildinfo
